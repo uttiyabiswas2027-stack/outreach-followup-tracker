@@ -1,0 +1,6 @@
+name,company,channel,status,last_contacted
+Founder A,Example Startup One,email,sent,2026-11-05
+Founder B,Example Startup Two,linkedin,replied,2026-11-08
+Founder C,Example Startup Three,email,sent,2026-11-12
+Founder D,Example Startup Four,email,call_booked,2026-11-09
+Founder E,Example Startup Five,linkedin,sent,2026-11-07
