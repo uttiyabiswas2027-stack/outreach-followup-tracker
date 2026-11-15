@@ -13,13 +13,38 @@ FOLLOW_UP_AFTER_DAYS = 5
 STATUSES = ("sent", "replied", "call_booked", "closed", "no_response")
 
 
+COLUMNS = ("name", "company", "channel", "status", "last_contacted")
+
+
 def load(path):
-    with open(path, newline="") as f:
-        rows = list(csv.DictReader(f))
-    for r in rows:
-        if r["status"] not in STATUSES:
-            raise ValueError(f"bad status {r['status']!r} for {r['name']}")
-        r["last_contacted"] = date.fromisoformat(r["last_contacted"])
+    """Read a contact CSV with row-specific validation errors."""
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        headers = reader.fieldnames or []
+        missing = set(COLUMNS) - set(headers)
+        if missing:
+            raise ValueError("missing columns: " + ", ".join(sorted(missing)))
+        if len(headers) != len(set(headers)):
+            raise ValueError("duplicate column names")
+        rows = []
+        for line, raw in enumerate(reader, start=2):
+            if None in raw:
+                raise ValueError(f"row {line}: too many fields")
+            row = {key: (raw.get(key) or "").strip() for key in COLUMNS}
+            for key, value in row.items():
+                if not value:
+                    raise ValueError(f"row {line}: {key} is required")
+            if row["status"] not in STATUSES:
+                raise ValueError(f"row {line}: status must be one of {', '.join(STATUSES)}")
+            value = row["last_contacted"]
+            try:
+                parsed = date.fromisoformat(value)
+                if parsed.isoformat() != value:
+                    raise ValueError
+            except ValueError:
+                raise ValueError(f"row {line}: last_contacted must be a valid YYYY-MM-DD") from None
+            row["last_contacted"] = parsed
+            rows.append(row)
     return rows
 
 
@@ -52,4 +77,7 @@ def report(rows, today):
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         sys.exit(__doc__)
-    sys.stdout.write(report(load(sys.argv[1]), date.fromisoformat(sys.argv[2])))
+    try:
+        sys.stdout.write(report(load(sys.argv[1]), date.fromisoformat(sys.argv[2])))
+    except (OSError, ValueError) as exc:
+        sys.exit(f"Error: {exc}")
